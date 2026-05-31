@@ -329,7 +329,10 @@ def _compute_w_element(
 
             def fn(*xs: float) -> float:
                 x = np.asarray(xs, dtype=float).reshape(len(xs), 1)
-                return float(g1(x)[0] * g2(x)[0] / var(x)[0])
+                g1x = np.asarray(g1(x), dtype=float).reshape(-1)[0]
+                g2x = np.asarray(g2(x), dtype=float).reshape(-1)[0]
+                varx = np.asarray(var(x), dtype=float).reshape(-1)[0]
+                return float(g1x * g2x / varx)
 
             result, _ = nquad(fn, ranges)
             result = np.float64(result)
