@@ -264,8 +264,8 @@ class Cows:
 
     def _component(self, idx: int, x: FloatArray) -> FloatArray:
         assert -1 <= idx < len(self)
-        w = np.zeros_like(x)
-        nx = self.norm(x)
+        nx = np.asarray(self.norm(x), dtype=float)
+        w = np.zeros_like(nx, dtype=float)
         nx[nx == 0] = np.nan
         irange = range(self._sig) if idx < 0 else range(idx, idx + 1)
         for i in irange:
