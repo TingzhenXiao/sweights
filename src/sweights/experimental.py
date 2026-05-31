@@ -2,6 +2,7 @@
 
 from scipy.linalg import solve
 from scipy.stats import uniform
+from scipy.integrate import nquad
 import numpy as np
 from numpy.typing import ArrayLike
 from typing import Union, Tuple, Optional, Sequence, List, Dict, Callable
@@ -317,20 +318,30 @@ def _compute_w_element(
 ) -> np.float64:
     if sample is None:
 
-        def fn(m: FloatArray) -> FloatArray:
-            return g1(m) * g2(m) / var(m)
+        xedges = np.asarray(xedges, dtype=float)
 
-        result = np.float64(0)
-        for x0, x1 in zip(xedges[:-1], xedges[1:]):
-            result += _quad_workaround(fn, float(x0), float(x1))
+        if xedges.ndim == 1:
 
-    else:
-        g1x = g1(sample)
-        g2x = g2(sample)
-        varx = var(sample)
-        result = np.mean(g1x * g2x * varx**-2, dtype=np.float64)
+            def fn(m: FloatArray) -> FloatArray:
+                return g1(m) * g2(m) / var(m)
 
-    return result
+            result = np.float64(0)
+            for x0, x1 in zip(xedges[:-1], xedges[1:]):
+                result += _quad_workaround(fn, float(x0), float(x1))
+
+        else:
+
+            ranges = [(float(x0), float(x1)) for x0, x1 in xedges]
+
+            def fn(*xs: float) -> float:
+                x = np.asarray(xs, dtype=float).reshape(len(xs), 1)
+                vx = var(x)
+                if np.any(vx == 0):
+                    return np.nan
+                return float(g1(x)[0] * g2(x)[0] / vx[0])
+
+            result, _ = nquad(fn, ranges)
+            result = np.float64(result)
 
 
 def _fit_mixture(
