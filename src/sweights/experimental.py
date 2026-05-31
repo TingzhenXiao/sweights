@@ -2,7 +2,7 @@
 
 from scipy.linalg import solve
 from scipy.stats import uniform
-from scipy.integrate import nquad
+from scipy.integrate import qmc_quad
 import numpy as np
 from numpy.typing import ArrayLike
 from typing import Union, Tuple, Optional, Sequence, List, Dict, Callable
@@ -325,17 +325,24 @@ def _compute_w_element(
             for x0, x1 in zip(xedges[:-1], xedges[1:]):
                 result += _quad_workaround(fn, float(x0), float(x1))
         else:
-            ranges = [(float(x0), float(x1)) for x0, x1 in xedges]
+            lows = xedges[:, 0].astype(float)
+            highs = xedges[:, 1].astype(float)
 
-            def fn(*xs: float) -> float:
-                x = np.asarray(xs, dtype=float).reshape(len(xs), 1)
-                g1x = np.asarray(g1(x), dtype=float).reshape(-1)[0]
-                g2x = np.asarray(g2(x), dtype=float).reshape(-1)[0]
-                varx = np.asarray(var(x), dtype=float).reshape(-1)[0]
-                return float(g1x * g2x / varx)
+            def fn(x: FloatArray) -> FloatArray:
+                g1x = np.asarray(g1(x), dtype=float).reshape(-1)
+                g2x = np.asarray(g2(x), dtype=float).reshape(-1)
+                varx = np.asarray(var(x), dtype=float).reshape(-1)
+                return g1x * g2x / varx
 
-            result, _ = nquad(fn, ranges)
-            result = np.float64(result)
+            qmc_result = qmc_quad(
+                fn,
+                lows,
+                highs,
+                n_estimates=8,
+                n_points=65536,
+            )
+
+            result = np.float64(qmc_result.integral)
 
     else:
         g1x = g1(sample)
