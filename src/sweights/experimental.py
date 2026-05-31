@@ -186,7 +186,7 @@ class Cows:
                 yields_sum = sum(yields, 0.0)
 
                 def fn(x: FloatArray) -> FloatArray:
-                    r = np.zeros_like(self.pdfs[0](x), dtype=float)
+                    r = np.zeros_like(x)
                     for a, pdf in zip(yields, self.pdfs):
                         r += (a / yields_sum) * pdf(x)
                     return r
