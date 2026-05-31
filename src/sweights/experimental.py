@@ -2,6 +2,7 @@
 
 from scipy.linalg import solve
 from scipy.stats import uniform
+from scipy.integrate import nquad
 import numpy as np
 from numpy.typing import ArrayLike
 from typing import Union, Tuple, Optional, Sequence, List, Dict, Callable
@@ -316,13 +317,22 @@ def _compute_w_element(
     sample: Optional[FloatArray],
 ) -> np.float64:
     if sample is None:
+        if xedges.ndim == 1:
+            def fn(m: FloatArray) -> FloatArray:
+                return g1(m) * g2(m) / var(m)
 
-        def fn(m: FloatArray) -> FloatArray:
-            return g1(m) * g2(m) / var(m)
+            result = np.float64(0)
+            for x0, x1 in zip(xedges[:-1], xedges[1:]):
+                result += _quad_workaround(fn, float(x0), float(x1))
+        else:
+            ranges = [(float(x0), float(x1)) for x0, x1 in xedges]
 
-        result = np.float64(0)
-        for x0, x1 in zip(xedges[:-1], xedges[1:]):
-            result += _quad_workaround(fn, float(x0), float(x1))
+            def fn(*xs: float) -> float:
+                x = np.asarray(xs, dtype=float).reshape(len(xs), 1)
+                return float(g1(x)[0] * g2(x)[0] / var(x)[0])
+
+            result, _ = nquad(fn, ranges)
+            result = np.float64(result)
 
     else:
         g1x = g1(sample)
