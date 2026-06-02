@@ -45,7 +45,7 @@ class Cows:
     ``yields``.
     """
 
-    __slots__ = ("pdfs", "norm", "yields", "_wm", "_am", "_sig")
+    __slots__ = ("pdfs", "norm", "yields", "_wm", "_am", "_sig", "_integration_options")
 
     pdfs: List[Density]
     norm: Density
@@ -67,6 +67,7 @@ class Cows:
         bounds: Dict[Density, Dict[str, Range]] = {},
         starts: Dict[Density, Dict[str, float]] = {},
         validation: FitValidation = FitValidation.GOF,
+        integration_options: Optional[Dict[str, float]] = None,
     ):
         """
         Initialize.
@@ -138,6 +139,7 @@ class Cows:
         bpdfs = list(bpdf) if isinstance(bpdf, Sequence) else [bpdf]
         self.pdfs = spdfs + bpdfs
         self._sig = len(spdfs)
+        self._integration_options = integration_options or {}
 
         if isinstance(norm, Sequence):
             xedges, self.norm = _process_histogram_argument(norm, range)
@@ -204,7 +206,13 @@ class Cows:
 
         if summation is False:
             sample = None
-        self._wm = _compute_lower_w_matrix(self.pdfs, self.norm, xedges, sample)
+        self._wm = _compute_lower_w_matrix(
+            self.pdfs,
+            self.norm,
+            xedges,
+            sample,
+            self._integration_options,
+        )
 
         # invert W matrix to get A matrix using an algorithm
         # optimized for positive definite matrices
@@ -299,13 +307,14 @@ def _compute_lower_w_matrix(
     var: Density,
     xedges: FloatArray,
     sample: Optional[FloatArray],
+    integration_options: Dict[str, float],
 ) -> FloatArray:
     n = len(g)
     w = np.zeros((n, n))
     # only fill lower triangle
     for i in range(n):
         for j in range(i + 1):
-            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample)
+            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample, integration_options)
     return w
 
 
@@ -315,6 +324,7 @@ def _compute_w_element(
     var: Density,
     xedges: FloatArray,
     sample: Optional[FloatArray],
+    integration_options: Dict[str, float],
 ) -> np.float64:
     if sample is None:
         if xedges.ndim == 1:
@@ -338,8 +348,8 @@ def _compute_w_element(
                 fn,
                 lows,
                 highs,
-                n_estimates=8,
-                n_points=65536,
+                n_estimates=int(integration_options.get("n_estimates", 8)),
+                n_points=int(integration_options.get("n_points", 65536)),
             )
 
             result = np.float64(qmc_result.integral)
