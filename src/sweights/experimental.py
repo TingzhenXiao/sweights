@@ -68,6 +68,7 @@ class Cows:
         starts: Dict[Density, Dict[str, float]] = {},
         validation: FitValidation = FitValidation.GOF,
         integration_options: Optional[Dict[str, float]] = None,
+        sample_weight: Optional[ArrayLike] = None,
     ):
         """
         Initialize.
@@ -212,6 +213,7 @@ class Cows:
             xedges,
             sample,
             self._integration_options,
+            sample_weight=sample_weight,
         )
 
         # invert W matrix to get A matrix using an algorithm
@@ -308,13 +310,14 @@ def _compute_lower_w_matrix(
     xedges: FloatArray,
     sample: Optional[FloatArray],
     integration_options: Dict[str, float],
+    sample_weight: Optional[FloatArray] = None,
 ) -> FloatArray:
     n = len(g)
     w = np.zeros((n, n))
     # only fill lower triangle
     for i in range(n):
         for j in range(i + 1):
-            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample, integration_options)
+            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample, integration_options, sample_weight=sample_weight)
     return w
 
 
@@ -358,7 +361,14 @@ def _compute_w_element(
         g1x = g1(sample)
         g2x = g2(sample)
         varx = var(sample)
-        result = np.mean(g1x * g2x * varx**-2, dtype=np.float64)
+        
+        integrand = g1x * g2x * varx**-2
+
+        if sample_weight is None:
+            result = np.mean(integrand, dtype=np.float64)
+        else:
+            sample_weight = np.asarray(sample_weight, dtype=float)
+            result = np.sum(sample_weight * integrand) / np.sum(sample_weight)
 
     return result
 
