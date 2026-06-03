@@ -135,7 +135,9 @@ class Cows:
         """
         if sample is not None:
             sample = np.atleast_1d(sample).astype(float)
-
+        if sample_weight is not None:
+            sample_weight = np.atleast_1d(sample_weight).astype(float)
+    
         spdfs = list(spdf) if isinstance(spdf, Sequence) else [spdf]
         bpdfs = list(bpdf) if isinstance(bpdf, Sequence) else [bpdf]
         self.pdfs = spdfs + bpdfs
@@ -328,6 +330,7 @@ def _compute_w_element(
     xedges: FloatArray,
     sample: Optional[FloatArray],
     integration_options: Dict[str, float],
+    sample_weight: Optional[FloatArray] = None,
 ) -> np.float64:
     if sample is None:
         if xedges.ndim == 1:
@@ -366,6 +369,7 @@ def _compute_w_element(
 
         if sample_weight is None:
             result = np.mean(integrand, dtype=np.float64)
+
         else:
             sample_weight = np.asarray(sample_weight, dtype=float)
             result = np.sum(sample_weight * integrand) / np.sum(sample_weight)
