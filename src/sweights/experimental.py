@@ -365,7 +365,7 @@ def _compute_w_element(
         g2x = g2(sample)
         varx = var(sample)
         
-        integrand = g1x * g2x * varx**-2
+        integrand = g1x * g2x / (varx * sample_pdf_x)
 
         if sample_weight is None:
             result = np.mean(integrand, dtype=np.float64)
