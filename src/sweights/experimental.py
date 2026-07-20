@@ -69,6 +69,7 @@ class Cows:
         validation: FitValidation = FitValidation.GOF,
         integration_options: Optional[Dict[str, float]] = None,
         sample_weight: Optional[ArrayLike] = None,
+        sample_pdf: Optional[Density] = None,
     ):
         """
         Initialize.
@@ -207,8 +208,9 @@ class Cows:
 
         assert self.norm is not None
 
-        if summation is False:
-            sample = None
+        elif sample is not None and sample_pdf is None:
+            sample_pdf = self.norm
+        
         self._wm = _compute_lower_w_matrix(
             self.pdfs,
             self.norm,
@@ -216,6 +218,7 @@ class Cows:
             sample,
             self._integration_options,
             sample_weight=sample_weight,
+            sample_pdf=sample_pdf,
         )
 
         # invert W matrix to get A matrix using an algorithm
@@ -313,13 +316,14 @@ def _compute_lower_w_matrix(
     sample: Optional[FloatArray],
     integration_options: Dict[str, float],
     sample_weight: Optional[FloatArray] = None,
+    sample_pdf: Optional[Density] = None,
 ) -> FloatArray:
     n = len(g)
     w = np.zeros((n, n))
     # only fill lower triangle
     for i in range(n):
         for j in range(i + 1):
-            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample, integration_options, sample_weight=sample_weight)
+            w[i, j] = _compute_w_element(g[i], g[j], var, xedges, sample, integration_options, sample_weight=sample_weight, sample_pdf=sample_pdf,)
     return w
 
 
@@ -331,6 +335,7 @@ def _compute_w_element(
     sample: Optional[FloatArray],
     integration_options: Dict[str, float],
     sample_weight: Optional[FloatArray] = None,
+    sample_pdf: Optional[Density] = None,
 ) -> np.float64:
     if sample is None:
         if xedges.ndim == 1:
@@ -364,8 +369,13 @@ def _compute_w_element(
         g1x = g1(sample)
         g2x = g2(sample)
         varx = var(sample)
+
+        if sample_pdf is None:
+            sample_pdf_x = varx
+        else:
+            sample_pdf_x = sample_pdf(sample)
         
-        integrand = g1x * g2x * varx **-2
+        integrand = g1x * g2x / (varx * sample_pdf_x)
 
         if sample_weight is None:
             result = np.mean(integrand, dtype=np.float64)
