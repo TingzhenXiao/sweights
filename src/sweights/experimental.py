@@ -207,6 +207,9 @@ class Cows:
             raise ValueError(msg)
 
         assert self.norm is not None
+        
+        if summation is False:
+            sample = None
 
         elif sample is not None and sample_pdf is None:
             sample_pdf = self.norm
